@@ -1,2 +1,5 @@
 # camera-lidar-integration-project
-Fusing Camera and Lidar Information to create better visualization and applications
+WHAT THIS REPO INCLUDES:
+* Camera Intrinsic Calibration Tools (e.g. Getting Rid of Lens Distortion)
+* Camera-Lidar Calibration Tools (making sure the camera and lidars know when they are looking at the same thing)
+* Other things TBD
