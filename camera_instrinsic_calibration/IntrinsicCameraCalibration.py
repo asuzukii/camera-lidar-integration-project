@@ -5,8 +5,6 @@ Write the undistorted image to file
 https://docs.opencv.org/master/dc/dbb/tutorial_py_calibration.html
 """
 
-# TODO: make good error handling
-
 import numpy as np
 import cv2
 import glob
@@ -16,7 +14,7 @@ import os
 import argparse
 
 
-def generate_checkerboard_coords(checkerboard_size: tuple):
+def generate_checkerboard_coords(checkerboard_size: tuple[int, int]):
     """
     Get the checkerboard coordinates in 3D space,
     with the origin being bottom-left corner.
@@ -32,12 +30,15 @@ def generate_checkerboard_coords(checkerboard_size: tuple):
     return checkerboard_coords
 
 # TODO: function description
-def camera_intrinsic_calibration(image_size, checkerboard_size, image_paths):
+def camera_intrinsic_calibration(image_size: tuple[int, int], 
+                                checkerboard_size: tuple[int, int],
+                                image_paths: list[str]):
     valid_checkerboard_coords = []
     image_points_list = []
     img_criteria = (
           cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
+    # find corners for each image
     for image_path in image_paths:
       print("Processing image: {}".format(image_path))
       image = cv2.imread(image_path)
@@ -54,24 +55,25 @@ def camera_intrinsic_calibration(image_size, checkerboard_size, image_paths):
               grayscale_image, checkerbaord_corners, (11, 11), (-1, -1), img_criteria)
 
           image_points_list.append(corners_improved)
-
-          # Draw corners for Debugging
-          cv2.drawChessboardCorners(
-              image, checkerboard_size, corners_improved, ret)
-          # TODO: make the window popup a little better when images are too big
-          cv2.imshow(image, image)
-          cv2.waitKey(500)
-          cv2.destroyAllWindows()
       else:
-          raise ValueError("not detected")
-    # cv2.destroyAllWindows()
+          raise ValueError("Corners not detected")
 
-  # Calibration
-    return cv2.calibrateCamera(
+    # Calibration
+    calibration_result = cv2.calibrateCamera(
         valid_checkerboard_coords, image_points_list, image_size, None, None)
+    print("===================================================")
+    print("RMS (< 0.3 is good normally):", calibration_result[0])
+    print("Camera Matrix:\n", calibration_result[1])
+    print("Distortion Coefficients (k1 k2 p1 p2 k3):", calibration_result[2])
+    print("===================================================")
+    # verbose so not printing these
+    # print("R Vec:", calibration_result[3])
+    # print("T Vec:", calibration_result[4])
+
+    return calibration_result
 
 # TODO: function description
-def write_results_to_file(save_dir, image_paths, calibration_results):
+def write_results_to_file(save_dir: str, calibration_results: tuple):
     ret, mtx, dist, rvecs, tvecs = calibration_results
     with io.open(os.path.join(save_dir, 'camera_calibration_result.txt'), 'w') as f:
         f.write("RMS error:\n")
@@ -86,38 +88,51 @@ def write_results_to_file(save_dir, image_paths, calibration_results):
     np.savez(os.path.join(save_dir, 'camera_calibration_result.npz'), RMS=np.array(
         ret).reshape((1,)), camera_matrix=mtx, distortion_coeff=dist)
 
-    # Undistortion
-    newCameraMatrix, roi = cv2.getOptimalNewCameraMatrix(
-        mtx, dist, image_size, 0, image_size)
+def undistort_and_save_images(camera_matrix,
+                              distortion_coefficients,
+                              image_paths: list[str],
+                              image_size,
+                              save_dir: str):
+    newCameraMatrix, region_of_interest = cv2.getOptimalNewCameraMatrix(
+        camera_matrix, distortion_coefficients, image_size, 0, image_size)
 
-    undistorted_dir = save_dir
-    if not os.path.exists(undistorted_dir):
-        os.mkdir(undistorted_dir)
+    if not os.path.exists(distortion_coefficients):
+        os.mkdir(save_dir)
 
     for image_path in image_paths:
         image = cv2.imread(image_path)
-        image_undistorted = cv2.undistort(image, mtx, dist, None, newCameraMatrix)
-        x, y, w, h = roi
+        image_undistorted = cv2.undistort(image,
+                                          camera_matrix,
+                                          distortion_coefficients,
+                                          None,
+                                          newCameraMatrix)
+        x, y, w, h = region_of_interest
         image_undistorted = image_undistorted[y:y+h, x:x+w]
         cv2.imwrite(
-            os.path.join(
-                undistorted_dir, 'undistorted_{}'.format(
-                    os.path.basename(image_path))),
-            image_undistorted)
+            os.path.join(save_dir,
+                        'undistorted_{}'.format(os.path.basename(image_path))),
+                        image_undistorted)
 
 def main():
-  # TODO: make descriptions for the arguments
-  # TODO: fix the required/typing of the arguments
     parser = argparse.ArgumentParser(
         description='Camera Intrinsic Calibration')
-    parser.add_argument('--image-dir', '-d', type=str, required=True)
-    parser.add_argument('--save-dir', '-s', type=str)
-    parser.add_argument('--image-width', '-w', type=str, required=True)
-    parser.add_argument('--image-height', '-h', type=str, required=True)
-    parser.add_argument('--show-corners', type=str)
+    parser.add_argument('--image-dir', '-d', type=str, required=True,
+                        help='directory of where the uncalibrated checkerboard pictures are')
+    parser.add_argument('--save-dir', '-s', type=str,
+                        help='directory of where calibrated checkerboard pictures\
+                        and parameters output file should go to')
+    parser.add_argument('--image-width', '-iw', type=int, required=True,
+                        help='image width in pixels')
+    parser.add_argument('--image-height', '-ih', type=int, required=True,
+                        help='image width in pixels')
+    parser.add_argument('--checkerboard-width', '-cw', type=int, required=True,
+                        help='checkerboard width in squares')
+    parser.add_argument('--checkerboard-height', '-ch', type=int, required=True,
+                        help='checkerboard height in squares')
 
     args = parser.parse_args()
 
+    # TODO: make more robust error handling here
     if not os.path.exists(args.image_dir):
         raise argparse.ArgumentError(
             "Specified folder: {} doesn't exist.".format(args.image_dir))
@@ -125,13 +140,22 @@ def main():
     print("Starting Intrinsic Calibration Process...")
 
     image_size = args.image_width, args.image_height
-    checkerboard_size = args.checkerboard_width, args.checkerboard_height
-    images = glob.glob(os.path.join(args.image_dir, '*.png'))
+    # calibration algorithm actually only cares about the internal corners of the board
+    checkerboard_size = args.checkerboard_width-1, args.checkerboard_height-1
+    image_paths = glob.glob(os.path.join(args.image_dir, '*.png'))
 
-    calibration_results = camera_intrinsic_calibration(image_size, checkerboard_size, images)
+    calibration_results = camera_intrinsic_calibration(image_size,
+                                                      checkerboard_size,
+                                                      image_paths)
 
     if args.save_dir:
-        write_results_to_file(args.save_dir, args.image_dir, calibration_results)
+        write_results_to_file(args.save_dir,
+                              args.image_dir)
+        undistort_and_save_images(calibration_results[1],
+                        calibration_results[2],
+                        image_paths,
+                        image_size,
+                        args.save_dir)
 
 if __name__ == '__main__':
     main()
