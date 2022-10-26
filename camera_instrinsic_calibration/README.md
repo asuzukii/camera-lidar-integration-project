@@ -10,7 +10,7 @@ This will save undistorted images to the specified directory, as well as outputt
 A npz file is also created with all of these parameters.
 
 If you would want to see it with a real example, use the images included in this subrepo with:
-`python IntrinsicCameraCalibration.py -d <absolute/path/for/checkerboard/images> -s <absolute/path/for/undistorted/images/to/go> -iw 2048 -ih 1536 -cw 9 -ch 7`
+`python IntrinsicCameraCalibration.py -d <absolute/path/to/this/dir/undistorted_images> -s <absolute/path/for/undistorted/images/to/go> -iw 2048 -ih 1536 -cw 9 -ch 7`
 
 ## Tips for Getting Good Calibration Parameters: 
 Here are a couple of tips to get your camera system to be properly working in the first try:
