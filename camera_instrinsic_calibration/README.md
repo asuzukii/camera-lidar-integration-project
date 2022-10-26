@@ -17,5 +17,4 @@ Here are a couple of tips to get your camera system to be properly working in th
 
 - The `ret` from the `calibrateCamera()` function is the mean reprojection error, i.e. the average distance between the original corner points and the undistorted corner points. Anything below a 0.30 reprojection error is almost necessary but not sufficient.
 - To keep the orientations of the `findChessboardCorners(),` try not to tilt the chessboard pattern more than 45 degrees from the camera. This will allow for consistent orientation of how the opencv module sees the chessboard, making the camera matrix more accurate.
-- When using cameras with different dimensions, calibrate them with same dimensions, each cropping the biggest centered rectangle possible (e.g. if you have a 1280x1024 and 2048x1690 camera, you can take a 1280x1024 centered crop of the 2048x1690 camera (make sure it’s centered!))
 - Make sure the checkerboard used for the calibration is completely flat, and the print is clear. If unsure, using a tablet is a good alternative to printed out boards (even though then there’s some glare that you’d have to be careful of)
